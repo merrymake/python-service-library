@@ -1,6 +1,6 @@
 # Merrymake Service Library
 
-Service library for the Merrymake platform
+Service library for the [Merrymake](https://www.merrymake.eu/) platform.
 
 ## Installation
 
