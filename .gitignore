@@ -1,0 +1,3 @@
+.install
+dist/
+**/__pycache__/
