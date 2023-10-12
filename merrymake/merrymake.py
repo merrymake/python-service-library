@@ -24,6 +24,7 @@ class Merrymake:
             print("Could not read from stdin")
             raise Exception("Could not read from stdin")
 
+    # string action, Action<byte[], JsonObject> handler
     def handle(self, action, handler):
 
         if self.action == action:
@@ -32,10 +33,12 @@ class Merrymake:
         else:
             return self
 
+    # string pEvent
     def post_event_to_rapids(pEvent):
         uri = f"{os.getenv('RAPIDS')}/{pEvent}"
         requests.post(uri)
 
+    # string pEvent, string body, MimeType content_type
     def post_to_rapids(pEvent, body, content_type):
         headers = {'Content-Type': content_type.__str__()}
         uri = f"{os.getenv('RAPIDS')}/{pEvent}"
