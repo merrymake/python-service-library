@@ -1,4 +1,4 @@
-app=figonacci
+app=python-service-library
 
 poetry-container=docker run --rm -it \
 		-w /mnt/app \
