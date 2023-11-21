@@ -6,8 +6,10 @@ import sys
 
 from merrymake.streamhelper import read_to_end
 from merrymake.nullmerrymake import NullMerrymake
+from merrymake.imerrymake import IMerrymake
+from merrymake.merrymimetypes import MerryMimetypes
 
-class Merrymake:
+class Merrymake(IMerrymake):
     def service(args):
         return Merrymake(args)
 
@@ -33,6 +35,9 @@ class Merrymake:
         else:
             return self
 
+    def initialize(self, f):
+        f()
+
     # string pEvent
     def post_event_to_rapids(pEvent):
         uri = f"{os.getenv('RAPIDS')}/{pEvent}"
@@ -50,16 +55,14 @@ class Merrymake:
         Merrymake.post_to_rapids("$reply", body, content_type)
 
     def reply_file_to_origin(path):
+        # get the extension, skip the dot
+        extension = pathlib.Path(path).suffix[1:]
 
-        extension = pathlib.Path(path).suffix
+        mime = MerryMimetypes.getMimeType(extension)
 
-        mime = mimetype.ext2mime.get(extension)
-
-        if mime == None:
-            raise Exception("Unknown file type. Add mimeType argument.")
-
-        reply_file_to_origin(path, mime)
+        Merrymake.reply_file_to_origin_with_content_type(path, mime)
 
     def reply_file_to_origin_with_content_type(path, content_type):
-        data = read_to_end(open(path), "r")
-        Merrymake.post_to_rapids("$reply", body, content_type)
+        with open(path, 'r') as file:
+            body = file.read()
+            Merrymake.post_to_rapids("$reply", body, content_type)
