@@ -6,7 +6,8 @@ The README.md is published on the page as well.
 
 ## Releasing
 
-`my-token` is generated from <https://pypi.org/manage/account/>
+`my-token` is generated from <https://pypi.org/manage/account/>,
+under `API tokens`.
 
 ```shell
 $ export POETRY_PYPI_TOKEN_PYPI=my-token
