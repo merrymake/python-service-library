@@ -2,16 +2,14 @@ import sys
 
 from merrymake import Merrymake
 from merrymake.merrymimetypes import MerryMimetypes
+from merrymake.envelope import Envelope
 
-# byte[] payloadBytes, JsonObject envelope
-def handleHello(payloadBytes, envelope):
+def handleHello(payloadBytes: bytearray, envelope: Envelope):
     payload = bytes(payloadBytes).decode('utf-8')
-    Merrymake.reply_to_origin(f"Hello, {payload}!", MerryMimetypes.txt);
+    Merrymake.reply_to_origin(f"Hello, {payload}!", MerryMimetypes.getMimeType("txt"));
 
 def main():
-    args = sys.argv[1:]
-    print(args)
-    Merrymake.service(args).handle("handleHello", handleHello);
+    Merrymake.service().handle("handleHello", handleHello);
 
 if __name__ == "__main__":
     main()
