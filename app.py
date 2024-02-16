@@ -4,12 +4,12 @@ from merrymake import Merrymake
 from merrymake.merrymimetypes import MerryMimetypes
 from merrymake.envelope import Envelope
 
-def handleHello(payloadBytes: bytearray, envelope: Envelope):
+def handle_hello(payloadBytes: bytearray, envelope: Envelope):
     payload = bytes(payloadBytes).decode('utf-8')
-    Merrymake.reply_to_origin(f"Hello, {payload}!", MerryMimetypes.getMimeType("txt"));
+    Merrymake.reply_to_origin(f"Hello, {payload}!", MerryMimetypes.get_mime_type("txt"));
 
 def main():
-    Merrymake.service().handle("handleHello", handleHello);
+    Merrymake.service().handle("handle_hello", handle_hello);
 
 if __name__ == "__main__":
     main()

@@ -14,13 +14,14 @@ from merrymake.envelope import Envelope
 class Merrymake(IMerrymake):
     """Merrymake is the main class of this library, as it exposes all other
      functionality, through a builder pattern.
-    
+
      @author Merrymake.eu (Chirstian Clausen, Nicolaj Græsholt)
     """
 
+    @staticmethod
     def service():
         """This is the root call for a Merrymake service.
-        
+
         Returns
         -------
         A Merrymake builder to make further calls on
@@ -33,7 +34,8 @@ class Merrymake(IMerrymake):
 
         try:
             self.action = args[-2]
-            self.envelope = Envelope(args[-1])
+            buf = json.loads(args[-1]);
+            self.envelope = Envelope(buf.get("messageId"), buf.get("traceId"), buf.get("sessionId"))
             self.payloadBytes = read_to_end(sys.stdin.buffer)
         except ValueError:  # includes simplejson.decoder.JSONDecodeError
             print('Decoding JSON has failed')
@@ -52,9 +54,10 @@ class Merrymake(IMerrymake):
     def initialize(self, f: Callable[[], None]):
         f()
 
+    @staticmethod
     def post_event_to_rapids(pEvent: str):
         """Post an event to the central message queue (Rapids), without a payload.
-        
+
         Parameters
         ----------
         event : string
@@ -64,10 +67,11 @@ class Merrymake(IMerrymake):
         uri = f"{os.getenv('RAPIDS')}/{pEvent}"
         requests.post(uri)
 
+    @staticmethod
     def post_to_rapids(pEvent: str, body: str, content_type: MerryMimetype):
         """Post an event to the central message queue (Rapids), with a payload and its
          content type.
-        
+
         Parameters
         ----------
         event : string
@@ -83,10 +87,11 @@ class Merrymake(IMerrymake):
 
         requests.post(uri, data=body, headers=headers)
 
+    @staticmethod
     def reply_to_origin(body: str, content_type: MerryMimetype):
         """Post a reply back to the originator of the trace, with a payload and its
          content type.
-        
+
         Parameters
         ----------
         body : string
@@ -97,25 +102,27 @@ class Merrymake(IMerrymake):
 
         Merrymake.post_to_rapids("$reply", body, content_type)
 
+    @staticmethod
     def reply_file_to_origin(path: str):
         """Send a file back to the originator of the trace.
-        
+
         Parameters
         ----------
         path : string
             The path to the file
         """
-     
+
         # get the extension, skip the dot
         extension = pathlib.Path(path).suffix[1:]
 
-        mime = MerryMimetypes.getMimeType(extension)
+        mime = MerryMimetypes.get_mime_type(extension)
 
         Merrymake.reply_file_to_origin_with_content_type(path, mime)
 
+    @staticmethod
     def reply_file_to_origin_with_content_type(path: str, content_type: MerryMimetype):
         """Send a file back to the originator of the trace.
-        
+
         Parameters
         ----------
         path : string
@@ -127,22 +134,24 @@ class Merrymake(IMerrymake):
             body = file.read()
             Merrymake.post_to_rapids("$reply", body, content_type)
 
+    @staticmethod
     def join_channel(channel: str):
         """Subscribe to a channel
         Events will stream back messages broadcast to that channel. You can join multiple channels. You stay in the channel until the
         request is terminated.
-        
+
         Note: The origin-event has to be set as "streaming: true" in the
         event-catalogue.
-        
+
         Parameters
         ----------
         channel : string
             The channel to join
         """
 
-        Merrymake.post_to_rapids("$join", channel, MerryMimetypes.getMimeType("txt"))
+        Merrymake.post_to_rapids("$join", channel, MerryMimetypes.get_mime_type("txt"))
 
+    @staticmethod
     def broadcast_to_channel(to: str, event: str, payload: str):
         """Broadcast a message (event and payload) to all listeners in a channel.
 
@@ -156,4 +165,4 @@ class Merrymake(IMerrymake):
             The payload of the message
         """
 
-        Merrymake.post_to_rapids("$broadcast", json.dumps({"to": to, "event": event, "payload": payload}), MerryMimetypes.getMimeType("json"))
+        Merrymake.post_to_rapids("$broadcast", json.dumps({"to": to, "event": event, "payload": payload}), MerryMimetypes.get_mime_type("json"))

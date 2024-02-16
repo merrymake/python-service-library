@@ -11,7 +11,7 @@ class MerryMimetype:
 class MerryMimetypes:
 
     @staticmethod
-    def getMimeType(mimetype):
+    def get_mime_type(mimetype):
 
         value = MerryMimetypes.mimetypes.get(mimetype)
 
