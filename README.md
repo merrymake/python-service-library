@@ -4,7 +4,7 @@ This is the official Python service library for Merrymake. It defines all the ba
 
 ## Usage
 
-Here is the most basic example of how to use this library: 
+Here is the most basic example of how to use this library:
 
 ```python
 import sys
@@ -13,13 +13,13 @@ from merrymake import Merrymake
 from merrymake.merrymimetypes import MerryMimetypes
 from merrymake.envelope import Envelope
 
-def handleHello(payloadBytes: bytearray, envelope: Envelope):
+def handle_hello(payloadBytes: bytearray, envelope: Envelope):
     payload = bytes(payloadBytes).decode('utf-8')
-    Merrymake.reply_to_origin(f"Hello, {payload}!", MerryMimetypes.getMimeType("txt"));
+    Merrymake.reply_to_origin(f"Hello, {payload}!", MerryMimetypes.get_mime_type("txt"));
 
 def main():
     (Merrymake.service()
-        .handle("handleHello", handleHello));
+        .handle("handle_hello", handle_hello));
 
 if __name__ == "__main__":
     main()
