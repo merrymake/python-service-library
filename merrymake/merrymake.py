@@ -34,7 +34,7 @@ class Merrymake(IMerrymake):
 
         try:
             self.action = args[-2]
-            buf = json.loads(args[-1]);
+            buf = json.loads(args[-1])
             self.envelope = Envelope(buf.get("messageId"), buf.get("traceId"), buf.get("sessionId"))
             self.payloadBytes = read_to_end(sys.stdin.buffer)
         except ValueError:  # includes simplejson.decoder.JSONDecodeError
@@ -149,7 +149,7 @@ class Merrymake(IMerrymake):
             The channel to join
         """
 
-        Merrymake.post_to_rapids("$join", channel, MerryMimetypes.get_mime_type("txt"))
+        Merrymake.post_to_rapids("$join", channel, MerryMimetypes.txt)
 
     @staticmethod
     def broadcast_to_channel(to: str, event: str, payload: str):
@@ -165,4 +165,4 @@ class Merrymake(IMerrymake):
             The payload of the message
         """
 
-        Merrymake.post_to_rapids("$broadcast", json.dumps({"to": to, "event": event, "payload": payload}), MerryMimetypes.get_mime_type("json"))
+        Merrymake.post_to_rapids("$broadcast", json.dumps({"to": to, "event": event, "payload": payload}), MerryMimetypes.json)
