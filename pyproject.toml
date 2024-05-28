@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "merrymake"
-version = "4.0.0"
+version = "5.0.0"
 description = "Service library for the Merrymake platform"
 authors = ["Nicolaj Græsholt <ng@merrymake.eu>", "Christian Clausen <cc@merrymake.eu>"]
 readme = "README.md"
