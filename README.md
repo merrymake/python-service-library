@@ -1,6 +1,6 @@
 # Python Service Library for Merrymake
 
-This is the official Python service library for Merrymake. It defines all the basic functions needed to work with Merrymake.
+This is the official Python service library for [Merrymake](https://www.merrymake.eu). It defines all the basic functions needed to work with Merrymake.
 
 ## Usage
 
