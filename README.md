@@ -7,16 +7,16 @@ This is the official Python service library for [Merrymake](https://www.merrymak
 Here is the most basic example of how to use this library:
 
 ```python
-from merrymake import Merrymake
-from merrymake.merrymimetypes import MerryMimetypes
 from merrymake.envelope import Envelope
-from merrymake.headers import Headers
+from merrymake.merrymake import Merrymake
 
-def handle_hello(payloadBytes: bytes, envelope: Envelope):
+def handle_hello(payloadBytes: bytes, envelope: Envelope) -> None:
     payload = payloadBytes.decode('utf-8')
-    Merrymake.reply_to_origin(f"Hello, {payload}!", Headers(MerryMimetypes.txt))
+    Merrymake.reply_to_origin({
+        "content": f"Hello, {payload}!",
+    })
 
-def main():
+def main() -> None:
     Merrymake.service().handle("handle_hello", handle_hello)
 
 if __name__ == "__main__":
@@ -28,5 +28,3 @@ if __name__ == "__main__":
 For more information check out our tutorials at [merrymake.dev](https://merrymake.dev).
 
 All templates are available through our CLI and on our [GitHub](https://github.com/merrymake).
-
-
