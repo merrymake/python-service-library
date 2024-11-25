@@ -1,24 +1,42 @@
-import json
-import os
 import sys
-import socket
-
-from typing import Callable
-from merrymake.streamhelper import read_to_end
+from typing import Any, Callable
+from merrymake.environment import Environment, RunningInMerrymake, RunningLocally
 from merrymake.nullmerrymake import NullMerrymake
 from merrymake.imerrymake import IMerrymake
 from merrymake.envelope import Envelope
-from merrymake.headers import Headers
+from merrymake.replypayload import ReplyPayload
+from merrymake.valuemapper import Both, value_to, to
 
-class Merrymake(IMerrymake):
+class Merrymake:
     """Merrymake is the main class of this library, as it exposes all other
      functionality, through a builder pattern.
 
      @author Merrymake.eu (Chirstian Clausen, Nicolaj Græsholt)
     """
 
-    @staticmethod
-    def service():
+    class _Merrymake(IMerrymake):
+        _action: str
+        _envelope: Envelope
+        _payload: bytes
+        def __init__(self) -> None:
+            tuple = Merrymake._environment.get_input()
+            self._action = tuple[0]
+            self._envelope = tuple[1]
+            self._payload = tuple[2]
+        def handle(self, action: str, handler: Callable[[bytes, Envelope], None]) -> Any:
+            if self._action == action:
+                handler(self._payload, self._envelope)
+                return NullMerrymake()
+            else:
+                return self
+
+        def initialize(self, f: Callable[[], None]) -> None:
+            f()
+
+    _environment: Environment[Any]
+
+    @classmethod
+    def service(cls) -> IMerrymake:
         """This is the root call for a Merrymake service.
 
         Returns
@@ -27,55 +45,11 @@ class Merrymake(IMerrymake):
         """
 
         args = sys.argv[1:]
-        return Merrymake(args)
+        Merrymake._environment = RunningLocally(args) if len(args) > 0 else RunningInMerrymake()
+        return Merrymake._Merrymake()
 
-    def __init__(self, args):
-        try:
-            buffer = read_to_end(sys.stdin.buffer)
-            st = 0
-            actionLen = (buffer[st+0]<<16) | (buffer[st+1]<<8) | buffer[st+2]
-            st += 3
-            self.action = bytes(buffer[st:st+actionLen]).decode('utf-8')
-            st += actionLen
-            envelopeLen = buffer[st+0]<<16 | buffer[st+1]<<8 | buffer[st+2]
-            st += 3
-            buf = json.loads(bytes(buffer[st:st+envelopeLen]).decode('utf-8'));
-            self.envelope = Envelope(buf.get("messageId"), buf.get("traceId"), buf.get("sessionId"))
-            st += envelopeLen
-            payloadLen = buffer[st+0]<<16 | buffer[st+1]<<8 | buffer[st+2]
-            st += 3
-            self.payloadBytes = bytes(buffer[st:st+payloadLen])
-        except ValueError:  # includes simplejson.decoder.JSONDecodeError
-            print('Decoding JSON has failed')
-            raise Exception("Decoding JSON has failed")
-        except:
-            print("Could not read from stdin")
-            raise Exception("Could not read from stdin")
-
-    def handle(self, action: str, handler: Callable[[bytearray, Envelope], None]):
-        if self.action == action:
-            handler(self.payloadBytes, self.envelope)
-            return NullMerrymake()
-        else:
-            return self
-
-    def initialize(self, f: Callable[[], None]):
-        f()
-
-    @staticmethod
-    def post_event_to_rapids(pEvent: str):
-        """Post an event to the central message queue (Rapids) without a payload.
-
-        Parameters
-        ----------
-        event : string
-            The event to post
-        """
-
-        Merrymake.post_to_rapids(pEvent, b'')
-
-    @staticmethod
-    def post_to_rapids(pEvent: str, body: bytes | str | dict):
+    @classmethod
+    def post_to_rapids(cls, pEvent: str, body: bytes | str | dict[str,Any]) -> None:
         """Post an event to the central message queue (Rapids) with a payload.
 
         Parameters
@@ -86,31 +60,85 @@ class Merrymake(IMerrymake):
             The payload
         """
 
-        if pEvent == "$reply":
-            body["headers"]["contentType"] = body["headers"]["content_type"].__str__()
-            del body["headers"]["content_type"]
-        parts = os.getenv('RAPIDS').split(":")
-        with socket.socket() as s:
-            s.connect((parts[0], int(parts[1])))
-            byteBody = bytes(json.dumps(body), 'utf-8') if type(body) is dict else bytes(body, 'utf-8') if type(body) is str else body
-            eventLen = len(pEvent)
-            byteBodyLen = len(byteBody)
-            s.sendall(bytes([eventLen>>16, eventLen>>8, eventLen>>0]))
-            s.sendall(bytes(pEvent, 'utf-8'))
-            s.sendall(bytes([byteBodyLen>>16, byteBodyLen>>8, byteBodyLen>>0]))
-            s.sendall(byteBody)
+        Merrymake._environment.post(pEvent, body)
 
-    @staticmethod
-    def reply_to_origin(body: str, headers: Headers):
-        """Post a reply back to the originator of the trace, with a payload and its
-         content type.
+    @classmethod
+    def post_event_to_rapids(cls, pEvent: str) -> None:
+        """Post an event to the central message queue (Rapids) without a payload.
 
         Parameters
         ----------
-        body : string
-            The payload
-        contentType : MimeType
-            The content type of the payload
+        event : string
+            The event to post
         """
 
-        Merrymake.post_to_rapids("$reply", { "content": body, "headers": { "content_type": headers.contentType }})
+        Merrymake.post_to_rapids(pEvent, b'')
+
+    @classmethod
+    def reply_to_origin(cls, reply: ReplyPayload) -> None:
+        """Post a reply back to the user who triggered this trace. The payload is sent
+        back using HTTP and therefore requires a content-type. For strings and json
+        objects the content-type can be omitted. You can optionally supply custom
+        headers and status-code if needed. Unless a status-code is supplied the
+        platform always returns code "200 Ok", even if the trace has failing
+        services.
+
+        Parameters
+        ----------
+        reply : ReplyPayload
+            content, content-type, status-code, and headers
+        """
+
+        content, c_type = value_to(
+            reply["content"],
+            Both(cls._environment.content_mapper, to.ContentType)
+        )
+
+        post_payload = {
+            "content": {
+                "type": "Buffer",
+                "data": list(content)
+            },
+            "content-type": (
+                reply["content_type"]
+            ).__str__() if "content_type" in reply else str(c_type),
+        }
+        if "status_code" in reply:
+            post_payload["status-code"] = reply["status_code"]
+        if "headers" in reply:
+            post_payload["headers"] = reply["headers"]
+
+        Merrymake.post_to_rapids("$reply", post_payload)
+
+    @classmethod
+    def join_channel(cls, channel: str) -> None:
+        """Subscribe to a channel
+        Events will stream back messages broadcast to that channel. You can join multiple channels. You stay in the channel until the
+        request is terminated.
+
+        Note: The origin-event has to be set as "streaming: true" in the
+        event-catalogue.
+
+        Parameters
+        ----------
+        channel : string
+            The channel to join
+        """
+
+        Merrymake.post_to_rapids("$join", channel)
+
+    @classmethod
+    def broadcast_to_channel(cls, to: str, event: str, payload: str) -> None:
+        """Broadcast a message (event and payload) to all listeners in a channel.
+
+        Parameters
+        ----------
+        to : string
+            The channel to broadcast to
+        event : string
+            The event-type of the message
+        payload : string
+            The payload of the message
+        """
+
+        Merrymake.post_to_rapids("$broadcast", {"to": to, "event": event, "payload": payload})
